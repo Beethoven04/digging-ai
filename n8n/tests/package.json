@@ -1,16 +1,15 @@
 {
-  "name": "tests",
+  "name": "digging-ai-n8n-tests",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "End-to-end tests for the Digging AI n8n workflows",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node e2e.test.js",
+    "mock": "node mock_server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "type": "commonjs",
   "dependencies": {
     "luxon": "^3.7.2"
-  }
+  },
+  "private": true
 }

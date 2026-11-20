@@ -1,0 +1,37 @@
+name: Request demo access
+description: Ask for access to the private one-command demo (real n8n + mocked APIs + demo campaign).
+title: "Demo access: <company or name>"
+labels: ["demo-access"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The demo runs the full pipeline on your machine with Docker: real n8n, the eight workflows, a demo campaign and
+        mocked Gmail, Sheets, LLM and Telegram APIs. No accounts needed. Access is granted per person.
+  - type: input
+    id: github
+    attributes:
+      label: GitHub username to invite
+    validations:
+      required: true
+  - type: input
+    id: who
+    attributes:
+      label: Name and company
+    validations:
+      required: true
+  - type: dropdown
+    id: why
+    attributes:
+      label: What brings you here?
+      options:
+        - I want to use it (license / service)
+        - Hiring / evaluating the author
+        - Partnership
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: use
+    attributes:
+      label: What would you use it for? (optional)

@@ -31,7 +31,7 @@ Candidates, best first. The first one a mail server confirms wins.
 Shared inboxes (`info@`, `hello@`, `careers@` …) are never candidates.
 
 ## Verification chain (`verify.py`)
-syntax → **MX** (DNS) → **Reacher** SMTP mailbox check (self-hosted, `server/`) → **Reoon** (only when Reacher says `unknown`).
+syntax → **MX** (DNS) → **Reacher** SMTP mailbox check (self-hosted, `infra/reacher/`) → **Reoon** (only when Reacher says `unknown`).
 
 | Verdict | Meaning | Sent? |
 |---|---|---|

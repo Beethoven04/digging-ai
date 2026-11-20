@@ -1,6 +1,11 @@
 // ===== COMMON HELPERS (injected into every Code node by build.py) =====
 const SHEET_ID = '__SHEET_ID__';
-const TZ = 'Europe/Stockholm';
+const TZ = '__TIMEZONE__';
+// campaign playbook (campaigns/<name>.json → playbook): guardrail patterns, style tells, intro subject, sender name
+const PLAYBOOK = __PLAYBOOK__;
+// guardrails from the playbook: [{id, label, re}] (a hit blocks the email)
+const FORBIDDEN = (PLAYBOOK.forbidden || []).map(f => ({ id: f.id, label: f.label, re: new RegExp(f.regex, 'i') }));
+function forbiddenHits(text) { return FORBIDDEN.filter(f => f.re.test(text)).map(f => ({ ...f, match: text.match(f.re)[0] })); }
 
 function now() { return DateTime.now().setZone(TZ); }
 function iso(dt) { return (dt || now()).toISO({ suppressMilliseconds: true }); }
@@ -100,24 +105,12 @@ function chunk(text, size = 3500) {
 }
 function words(s) { return str(s).replace(/https?:\/\/\S+/g, 'URL').split(/\s+/).filter(w => /[\p{L}\p{N}]/u.test(w)).length; }
 function sheetUrl() { return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`; }
-function contactLine(c) {
-  return [
-    `${str(c.full_name) || (str(c.first_name) + ' ' + str(c.last_name)).trim()} (${str(c.role) || 'role ?'}) @ ${str(c.company)}`,
-    c.company_domain ? `domain: ${c.company_domain}` : '',
-    c.linkedin_url ? `LinkedIn: ${c.linkedin_url}` : '',
-    c.public_emails ? `public emails: ${c.public_emails}` : '',
-    c.email ? `email: ${c.email} [${str(c.email_status) || 'unchecked'}]` : '',
-    `contact_id: ${c.contact_id} (sheet row ${c._row})`,
-  ].filter(Boolean).join('\n');
-}
 function parseLLMJson(text) {
   let t = str(text).trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
   const a = t.indexOf('{'), b = t.lastIndexOf('}');
   if (a >= 0 && b > a) t = t.slice(a, b + 1);
   return JSON.parse(t);
 }
-const ROLE_LOCALS = ['info', 'hello', 'hi', 'hej', 'hey', 'contact', 'kontakt', 'careers', 'career', 'jobs', 'job', 'support', 'help', 'sales', 'press', 'media', 'team', 'friends', 'business', 'research', 'information', 'office', 'admin', 'mail', 'post', 'noreply', 'no-reply', 'marketing', 'hr', 'recruiting', 'talent', 'invoice', 'billing', 'privacy', 'legal', 'security', 'partners', 'partner', 'hallo', 'kundeservice', 'kundservice'];
-function isRoleAddress(email) { const l = norm(email).split('@')[0]; return ROLE_LOCALS.includes(l); }
 const EMAIL_RE = /^[a-z0-9._%+'-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/i;
 function heartbeat(W, T, key) {
   const r = T.Config && T.Config.rows.find(x => str(x.key).trim() === key);
@@ -188,13 +181,13 @@ function buildRaw(o) {
   return { raw: Buffer.from(mime, 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''), text };
 }
 
-// ---- Reply assistant (wf7): availability, checks, diff, Telegram card ----
-// Louai's calendar lives on his Mac (not Google), so the bot never checks free/busy: it gets his general hours
-// (Config AVAILABILITY like "1-5 09:00-17:00", 1=Mon..7=Sun) and never confirms a time on its own (Louai checks before ✅).
+// ---- Reply assistant: availability, checks, diff, Telegram card ----
+// The bot never reads a calendar (the owner's calendar may live anywhere): it gets the owner's general hours
+// (Config AVAILABILITY like "1-5 09:00-17:00", 1=Mon..7=Sun) and never confirms a time on its own (the owner checks before ✅).
 function availabilityText(cfg) {
   const m = cfg.str('AVAILABILITY', '1-5 09:00-17:00').match(/^(\d)-(\d)\s+(\d{1,2}:\d{2})-(\d{1,2}:\d{2})$/);
   const D = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  return m ? `${D[+m[1]]} to ${D[+m[2]]}, ${m[3]} to ${m[4]} (Stockholm/Copenhagen time)` : cfg.str('AVAILABILITY', '');
+  return m ? `${D[+m[1]]} to ${D[+m[2]]}, ${m[3]} to ${m[4]} (${TZ} time)` : cfg.str('AVAILABILITY', '');
 }
 function availabilityOf(cfg) {
   return { usual_hours: availabilityText(cfg), note: cfg.str('AVAILABILITY_NOTE', ''), meeting_minutes: cfg.num('MEETING_MINUTES', 30) };
@@ -216,8 +209,7 @@ function replyChecks(row, c) {
   const low = body.toLowerCase();
   const ph = body.match(/(\{\{|\}\}|\[[^\]\n]{1,40}\]|<[A-Z_ ]{3,}>|\bTODO\b|\bTBD\b|\bXXX+\b|lorem ipsum)/i);
   if (ph) fails.push(`Placeholder left in the text: "${ph[0]}"`);
-  if (/\b(gpa|grades?|transcripts?)\b/i.test(body)) fails.push('Mentions grades');
-  if (/\b(for free|unpaid|without (pay|salary)|no (pay|salary)|low (pay|salary)|small (salary|stipend))\b/i.test(body)) fails.push('Talks about free/low pay');
+  for (const f of forbiddenHits(body)) fails.push(`${f.label}: "${f.match}"`);
   if (new RegExp('__SIGNATURE_LEAK__', 'i').test(body)) warns.push('Contact details in the body (the signature is added automatically)');
   if (/[—;]/.test(body)) warns.push('Em dash or semicolon (reads machine-written)');
   const banned = ['hope this finds you', 'hope you are well', "hope you're well", 'reaching out', 'reach out', 'passionate', 'thrilled', 'excited to', 'touch base', 'circle back', 'just following up', 'i would love the opportunity', 'leverag'].filter(x => low.includes(x));
@@ -277,7 +269,7 @@ function replyTarget(r, c) {
 }
 function replyJobInput(mode, r, m, target, facts, cfg, referrer) {
   return {
-    mode, today: now().toFormat('cccc d LLLL yyyy'), louai_facts: facts,
+    mode, today: now().toFormat('cccc d LLLL yyyy'), sender_facts: facts,
     original_email: { subject: str(m && m.subject), body: str(m && m.body) },
     their_message: { category: str(r.category), from_name: str(r.from_name || r.full_name), text: str(r.text || r.snippet) },
     recipient: { first_name: str(target.first_name), role: str(target.role), company: str(target.company), ...(mode === 'intro' ? { referred_by: referrer } : {}) },

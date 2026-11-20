@@ -1,0 +1,87 @@
+{
+  "name": "Digging AI",
+  "timezone": "Europe/Stockholm",
+  "sheet_id": "YOUR_GOOGLE_SHEET_ID",
+  "sheets_auth": "oauth",
+  "error_workflow_id": "",
+  "telegram": {
+    "chat_id": "123456789",
+    "reply_bot_chat_id": "",
+    "message_prefix": ""
+  },
+  "reply_bot": {
+    "callback_prefix": "",
+    "forward": {
+      "url": "",
+      "callback_prefix": "",
+      "command": "",
+      "mark": ""
+    },
+    "webhook_path": "",
+    "command": ""
+  },
+  "schedules": {},
+  "owner": {
+    "name": "Alex Morgan",
+    "from_email": "owner@example.com",
+    "other_emails": [
+      "owner0@example.com"
+    ],
+    "signature_leak_regex": "(\\+00 ?000|alexmorgan\\.dev|linkedin\\.com/in/alex-morgan|owner@example\\.com)",
+    "phone": "+00 000 00 00 00",
+    "test_inbox": "owner.test@example.com"
+  },
+  "playbook": {
+    "goal": "is looking for a master's thesis internship (3 to 6 months or longer, from February 2027) at AI companies in Skåne and Greater Copenhagen",
+    "offer": "a master's thesis internship from February 2027, 3 to 6 months or longer, remote, hybrid or on-site",
+    "intro_subject": "Internship: {name} suggested you",
+    "guardrails": [
+      {
+        "id": "grades",
+        "label": "Mentions grades",
+        "regex": "\\b(gpa|grades?|graded|transcripts?|cum laude|summa|magna|honou?rs degree|mention (bien|tr[eè]s bien)|valedictorian|top \\d+ ?%|ranked (first|1st|top)|\\d{1,2}([.,]\\d+)?\\s?\\/\\s?20)\\b",
+        "rule": "Never mention grades, GPA, marks, rankings or transcripts."
+      },
+      {
+        "id": "low_pay",
+        "label": "Offers free/low-paid work",
+        "regex": "\\b(for free|unpaid|without (pay|salary|compensation)|no (pay|salary)|free of charge|pro bono|volunteer(ing)?|low (pay|salary|wage)|small (salary|stipend|pay)|minimal (pay|salary|compensation)|any salary|whatever (you can )?pay|reduced (pay|salary)|don'?t need to be paid|no compensation)\\b",
+        "rule": "Never offer to work for free, unpaid, for a low or small salary, or \"for any salary\"."
+      }
+    ],
+    "style_tells": [
+      "my portfolio and cv are below",
+      "i'm alex, a final-year master's student"
+    ]
+  },
+  "credentials": {
+    "googleSheetsOAuth2Api": {
+      "id": "",
+      "name": "Digging AI · Google Sheets"
+    },
+    "googleApi": {
+      "id": "",
+      "name": "Digging AI · Sheets (service account)"
+    },
+    "gmailOAuth2": {
+      "id": "",
+      "name": "Digging AI · Gmail"
+    },
+    "telegramApi": {
+      "id": "",
+      "name": "Digging AI · Telegram ops bot"
+    },
+    "telegramApi_replybot": {
+      "id": "",
+      "name": "Digging AI · Telegram reply bot"
+    },
+    "httpHeaderAuth_gemini": {
+      "id": "",
+      "name": "Digging AI · Gemini API key"
+    },
+    "httpHeaderAuth_groq": {
+      "id": "",
+      "name": "Digging AI · Groq API key"
+    }
+  }
+}
