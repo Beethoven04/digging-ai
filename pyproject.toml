@@ -1,0 +1,13 @@
+# Tool configuration only (the finder installs from finder/requirements.txt).
+[tool.ruff]
+line-length = 200
+target-version = "py39"
+extend-exclude = ["finder/finder/ci.py", "infra/reacher/ci-verifier"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B"]
+ignore = ["E731", "E701", "E702", "B008", "E741"]  # E741: f, l, L = first, last, full last (email formats)
+
+[tool.pytest.ini_options]
+testpaths = ["finder/tests"]
+pythonpath = ["finder"]

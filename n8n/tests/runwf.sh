@@ -1,6 +1,6 @@
 #!/bin/bash
-# usage: runwf.sh <n>  -> executes outreachWf00000<n> inside the test container, prints per-node summary
-docker exec -e N8N_RUNNERS_BROKER_PORT=5681 n8n-outreach-test n8n execute --id=outreachWf00000$1 --rawOutput > run$1.json 2>run$1.err
+# usage: runwf.sh <n>  -> executes diggingWf00000<n> inside the test container, prints per-node summary
+docker exec -e N8N_RUNNERS_BROKER_PORT=5681 n8n-digging-test n8n execute --id=diggingWf00000$1 --rawOutput > run$1.json 2>run$1.err
 echo "exit $?"; grep -v -i 'deprecat\|warn' run$1.err | head -5
 python3 - "$1" <<'PY'
 import json,sys

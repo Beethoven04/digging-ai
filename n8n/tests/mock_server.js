@@ -1,13 +1,14 @@
-// Mock of Google Sheets, Gmail, Gemini/Groq, Hunter, Reoon, DoH and Telegram for running the workflows in a real n8n.
+// Mock of Google Sheets, Gmail, Gemini/Groq and Telegram for running the workflows in a real n8n.
+// Env: PORT (8787), FIXTURE (sheet JSON, default sheet_fixture.demo.json), SNAPSHOT (resume a saved state), MOCK_UI (HTML file served at /).
 // Admin: /admin/flag { sentHits: [{id, threadId}], sentMail: {id: gmailMessage} } sets what Gmail Sent returns.
 const http = require('http'), url = require('url'), fs = require('fs');
-const PORT = 8787;
+const PORT = Number(process.env.PORT || 8787);
 const SNAP = process.env.SNAPSHOT;
-const state = SNAP ? JSON.parse(fs.readFileSync(SNAP)) : { tabs: JSON.parse(fs.readFileSync(__dirname + '/sheet_fixture.json')), calls: [], sent: [], telegram: [], replies: {}, tg: [], searchHits: [], sentHits: [], sentMail: {}, update: {} };
+const state = SNAP ? JSON.parse(fs.readFileSync(SNAP)) : { tabs: JSON.parse(fs.readFileSync(process.env.FIXTURE || __dirname + '/sheet_fixture.demo.json')), calls: [], sent: [], telegram: [], replies: {}, tg: [], searchHits: [], sentHits: [], sentMail: {}, update: {} };
 const cfgSet = (k, v) => { const t = state.tabs.Config; const r = t.find(x => x[0] === k); r[1] = v; };
 // make the run deterministic and fast
 if (!SNAP) [['DRY_RUN', true], ['TEST_RECIPIENT', ''], ['WINDOW_START', '00:00'], ['WINDOW_END', '23:59'], ['SEND_DAYS', '1,2,3,4,5,6,7'], ['JITTER_SECONDS', 0],
- ['MIN_GAP_MINUTES', 0], ['FINDER_BATCH', 4], ['VERIFY_BATCH', 6], ['QC_BATCH', 4]].forEach(([k, v]) => cfgSet(k, v));
+ ['MIN_GAP_MINUTES', 0], ['QC_BATCH', 4]].forEach(([k, v]) => cfgSet(k, v));
 if (!SNAP && !state.tabs.Config.some(r => r[0] === 'LAST_RUN_SYNC')) state.tabs.Config.push(['LAST_RUN_SYNC', '', 'written by workflow 8']);
 const colIdx = l => { let n = 0; for (const ch of l) n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; };
 const trim = rows => rows.map(r => { const x = r.map(v => (v === '' ? undefined : v)); while (x.length && x[x.length - 1] === undefined) x.pop(); return x.map(v => (v === undefined ? '' : v)); });
@@ -20,7 +21,7 @@ function llm(b) {
   if (/quality checker/.test(sys)) {
     const bad = /Hi Anna/.test(user.message.body);
     return { claims: [{ quote: 'a Dutch AI consultancy', about: 'sender', supported: true, fact_ids: ['F06'] }], personal_reason: { present: true, quote: '', specific: true }, ask: { count: 1, quotes: [] },
-      recipient_ok: !bad, tone_ok: true, mentions_grades: false, offers_free_or_low_pay: false, issues: bad ? [{ rule: 5, quote: 'Hi Anna', problem: 'wrong name', fix: 'use Rasmus' }] : [], score: bad ? 30 : 93, verdict: bad ? 'fail' : 'pass' };
+      recipient_ok: !bad, tone_ok: true, forbidden_hits: [], issues: bad ? [{ rule: 5, quote: 'Hi Anna', problem: 'wrong name', fix: 'use Rasmus' }] : [], score: bad ? 30 : 93, verdict: bad ? 'fail' : 'pass' };
   }
   if (/classify replies/.test(sys)) return { category: 'interested', summary: 'Wants a call next Tuesday.', next_step: 'Propose two slots.', referral_to: '', language: 'en', confidence: 0.9 };
   if (/You write email answers/.test(sys)) return user.mode === 'intro'
@@ -36,6 +37,7 @@ http.createServer(async (req, res) => {
   state.calls.push(`${req.method} ${p}`);
   try {
     // ---- admin ----
+    if (p === '/' && process.env.MOCK_UI) { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end(fs.readFileSync(process.env.MOCK_UI)); }
     if (p === '/admin/state') return send(res, 200, state);
     if (p === '/admin/flag') { Object.assign(state, b); return send(res, 200, { ok: 1 }); }
     if (p === '/admin/set') { const { tab, keyCol, key, col, value } = b; const t = state.tabs[tab]; const h = t[0]; t.filter((r, i) => i && (key === '*' || r[h.indexOf(keyCol)] === key)).forEach(r => { while (r.length <= h.indexOf(col)) r.push(''); r[h.indexOf(col)] = value; }); return send(res, 200, { ok: 1 }); }
@@ -80,10 +82,6 @@ http.createServer(async (req, res) => {
       if (p.startsWith('/gemini') && state.failGemini) return send(res, 503, { error: { message: 'overloaded' } });
       return send(res, 200, { choices: [{ message: { content: JSON.stringify(llm(b)) } }], model: b.model });
     }
-    // ---- Hunter / Reoon / DoH ----
-    if (p === '/hunter/v2/email-finder') return send(res, 200, u.query.first_name === 'Kim' ? { data: { email: null } } : { data: { email: `${u.query.first_name.normalize('NFD').replace(/[^a-zA-Z]/g, '').toLowerCase()}@${u.query.domain}`, score: 85, verification: { status: 'valid' }, sources: [] } });
-    if (p === '/reoon/api/v1/verify') return send(res, 200, /^dennis@/.test(u.query.email) ? { status: 'catch_all', overall_score: 60 } : { status: 'safe', overall_score: 97, is_deliverable: true });
-    if (p === '/doh/dns-query') return send(res, 200, u.query.name === 'getkiku.com' ? { Status: 3 } : { Status: 0, Answer: [{ name: u.query.name, type: 15, data: '10 mx.' + u.query.name + '.' }] }, 'application/dns-json');
     // ---- Telegram ----
     // real n8n Telegram nodes (reply bot) with credential Base URL = <mock>/tg
     if ((m = p.match(/^\/tg\/bot[^/]+\/(\w+)$/))) { state.tg.push({ method: m[1], body: b }); return send(res, 200, { ok: true, result: m[1] === 'answerCallbackQuery' ? true : { message_id: 500 + state.tg.length, chat: { id: b.chat_id }, text: b.text } }); }

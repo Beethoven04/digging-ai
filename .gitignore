@@ -2,24 +2,30 @@
 # Real contacts, research output, trackers, CVs, drafts
 data/
 private/
-# Agent instructions with personal facts (public summary lives in docs/agent-roles.md)
+# Local assistant notes and the private identifier list used by scripts/privacy_check.sh
 CLAUDE.md
 roles/
+.privacy-patterns
+
+# Real campaigns (sheet IDs, chat IDs, credential IDs, owner identity). Only the example is public.
+campaigns/*.json
+!campaigns/example.json
 
 # Secrets / real IDs
 .env
 *.env
 !.env.example
 n8n/build_config.json
+n8n/tools/*.local.*
 finder/service_account*.json
 **/service_account*.json
 *credentials*.json
 *.pem
 *.key
 
-# Generated n8n workflows contain the real Sheet ID / credential IDs (rebuild with build.py)
+# Generated n8n workflows contain the campaign's Sheet ID / credential IDs (rebuild with build.py)
 n8n/workflows/
-# Test fixture built from the real sheet (tests use demo/sheet_fixture.demo.json in public)
+# Test fixture built from the real sheet (tests use n8n/tests/sheet_fixture.demo.json in public)
 n8n/tests/sheet_fixture.json
 n8n/tests/run*.json
 n8n/tests/run*.err
@@ -45,5 +51,5 @@ __pycache__/
 n8n/tests/workflows_mock/
 
 # GitHub-Actions mailbox verifier: personal use only, not published (GitHub ToS gray area)
-server/ci-verifier/
+infra/reacher/ci-verifier/
 finder/finder/ci.py

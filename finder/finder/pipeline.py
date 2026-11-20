@@ -115,7 +115,7 @@ def run(targets_csv, out_csv, do_verify=True, max_guess_checks=3, use_github=Tru
             cands = candidates_for(p, intel, fmt, all_formats=all_formats)
             if all_formats:
                 max_guess_checks = 99
-            chosen, checks, tried, catch_all = None, [], [], False
+            chosen, tried, catch_all = None, [], False
             for c in cands:
                 if c["source"] == "guess" and len([t for t in tried if t["source"] == "guess"]) >= max_guess_checks:
                     break
